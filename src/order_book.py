@@ -1,8 +1,9 @@
 from collections import defaultdict
 from typing import List
 from .order import Order
+from .cancel_modify import CancelModifyMixin
 
-class OrderBook:
+class OrderBook(CancelModifyMixin):
     def __init__(self):
         self.bids = defaultdict(list)
         self.asks = defaultdict(list)
