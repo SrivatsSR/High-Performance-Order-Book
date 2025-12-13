@@ -1,2 +1,3 @@
-# financial-math-lab
-A collection of foundational quant finance, math, and trading system experiments.
+High-Performance Order Book (Python)
+
+A limit order book implementation with price-time priority, designed for learning and eventually high-frequency trading applications.
