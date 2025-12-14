@@ -7,6 +7,7 @@ from typing import Dict, Deque, List, Optional, Tuple
 
 from .order import Order
 from .trade import Trade
+from .matching_engine import MatchingEngine
 
 
 class OrderBook:
@@ -26,6 +27,7 @@ class OrderBook:
         # Order ID -> (price, is_buy) for O(1) lookup during cancellation
         self.order_map: Dict[int, Tuple[float, bool]] = {}
         
+        self.matcher = MatchingEngine()
         # Statistics
         self.total_orders = 0
         self.total_trades = 0
@@ -41,18 +43,27 @@ class OrderBook:
         Returns:
             List of trades generated (empty if no matches)
         """
-        # TODO: Implement matching logic on Day 2
-        # For now, just add to appropriate side without matching
-        
         if order.is_buy:
-            self.bids[order.price].append(order)
+            trades = self.matcher.match_order(order, self.asks, self.order_map)
         else:
-            self.asks[order.price].append(order)
-            
-        self.order_map[order.id] = (order.price, order.is_buy)
-        self.total_orders += 1
+            trades = self.matcher.match_order(order, self.bids, self.order_map)
         
-        return []
+        # Update statistics
+        for trade in trades:
+            self.total_trades += 1
+            self.total_volume += trade.quantity
+        
+        # If order has remaining quantity, add to book
+        if order.quantity > 0:
+            if order.is_buy:
+                self.bids[order.price].append(order)
+            else:
+                self.asks[order.price].append(order)
+            
+            self.order_map[order.id] = (order.price, order.is_buy)
+            self.total_orders += 1
+        
+        return trades
         
     def cancel_order(self, order_id: int) -> bool:
         """
@@ -149,4 +160,4 @@ class OrderBook:
         
         return (f"OrderBook(Bid: {bid_str}, Ask: {ask_str}, "
                 f"Spread: {spread_str}, Orders: {self.total_orders}, "
-                f"Trades: {self.total_trades})")
+                f"Trades: {self.total_trades}, Volume: {self.total_volume})")
