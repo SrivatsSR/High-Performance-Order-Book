@@ -103,6 +103,11 @@ def main():
     print(f"  Total Trades: {book.total_trades}")
     print(f"  Total Volume: {book.total_volume}")
     
+    print("\n" + "="*70)
+    print(" " * 25 + "FINAL ORDER BOOK DEPTH")
+    print("="*70)
+    
+    book.print_depth(levels=10)
 
 if __name__ == "__main__":
     main()

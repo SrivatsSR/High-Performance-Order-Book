@@ -66,18 +66,22 @@ class OrderBook:
         return trades
         
     def cancel_order(self, order_id: int) -> bool:
-        """
-        Cancel an order by ID.
-        
-        Args:
-            order_id: Unique identifier of the order to cancel
-            
-        Returns:
-            True if order was found and cancelled, False otherwise
-        """
-        # TODO: Implement proper cancellation on Day 3
         if order_id not in self.order_map:
             return False
+        
+        price, is_buy = self.order_map[order_id]
+
+        side = self.bids if is_buy else self.asks
+
+        if price in side and side[price]:
+            if side[price][0] == order_id:
+                side[price].popleft()
+
+                if not side[price]:
+                    del side[price]
+                
+                del self.order_map[order_id]
+                return True
             
         # Remove from map (lazy deletion from queues)
         del self.order_map[order_id]
@@ -145,9 +149,76 @@ class OrderBook:
         Returns:
             Dict with 'bids' and 'asks', each containing list of (price, quantity)
         """
-        # TODO: Implement on Day 4
+        result = {"bids": [], "asks": []}
+    
+        # Get best bids (highest prices first)
+        bid_prices = sorted(self.bids.keys(), reverse=True)[:levels]
+        for price in bid_prices:
+            # Sum quantity of all ACTIVE orders at this price
+            total_qty = sum(
+                order.quantity 
+                for order in self.bids[price] 
+                if order.id in self.order_map  # Skip cancelled
+            )
+            if total_qty > 0:
+                result["bids"].append((price, total_qty))
+        
+        # Get best asks (lowest prices first)
+        ask_prices = sorted(self.asks.keys())[:levels]
+        for price in ask_prices:
+            total_qty = sum(
+                order.quantity 
+                for order in self.asks[price]
+                if order.id in self.order_map  # Skip cancelled
+            )
+            if total_qty > 0:
+                result["asks"].append((price, total_qty))
+        
+        return result
         pass
         
+    def print_depth(self, levels: int = 5):
+        """Print order book depth in a visual format"""
+        depth = self.get_depth(levels)
+        
+        print(f"\n{'='*60}")
+        print(f"{'ORDER BOOK DEPTH':^60}")
+        print(f"{'='*60}")
+        
+        # Print asks (in reverse, so highest ask is at top)
+        if depth["asks"]:
+            print(f"{'ASKS (Sell Orders)':^60}")
+            print(f"{'-'*60}")
+            for price, qty in reversed(depth["asks"]):
+                bar = "█" * min(int(qty / 5), 40)  # Scale bar size
+                print(f"  ${price:7.2f}  │  {qty:5d}  {bar}")
+        else:
+            print(f"{'(No asks)':^60}")
+        
+        # Print spread info
+        print(f"{'-'*60}")
+        spread = self.get_spread()
+        mid = self.get_mid_price()
+        if spread and mid:
+            print(f"{'SPREAD':^20} │ {'MID PRICE':^20} │ {'%':^15}")
+            spread_pct = (spread / mid * 100) if mid > 0 else 0
+            print(f"${spread:^19.2f} │ ${mid:^19.2f} │ {spread_pct:^14.3f}%")
+        else:
+            print(f"{'(One-sided market)':^60}")
+        print(f"{'-'*60}")
+        
+        # Print bids
+        if depth["bids"]:
+            print(f"{'BIDS (Buy Orders)':^60}")
+            print(f"{'-'*60}")
+            for price, qty in depth["bids"]:
+                bar = "█" * min(int(qty / 5), 40)
+                print(f"  ${price:7.2f}  │  {qty:5d}  {bar}")
+        else:
+            print(f"{'(No bids)':^60}")
+        
+        print(f"{'='*60}\n")
+
     def __repr__(self) -> str:
         """String representation of order book state"""
         best_bid = self.get_best_bid()
